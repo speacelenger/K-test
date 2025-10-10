@@ -61,3 +61,34 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     // MARK: ここまで追加するコード
 }); 
+
+document.addEventListener('DOMContentLoaded', function() {
+    // モーダル要素を取得
+    var modal = document.getElementById("imageModal");
+    var modalImg = document.getElementById("expandedImg");
+    var closeBtn = document.getElementsByClassName("close-btn")[0];
+
+    // すべてのプロジェクト画像を取得
+    var images = document.querySelectorAll(".main-project-image");
+    
+    // 各画像にクリックイベントリスナーを設定
+    images.forEach(function(img) {
+        img.onclick = function() {
+            modal.style.display = "block";
+            modalImg.src = this.src; // クリックされた画像のURLを設定
+        }
+    });
+
+    // 閉じるボタンがクリックされたときの処理
+    closeBtn.onclick = function() {
+        modal.style.display = "none";
+    }
+
+    // モーダルの外側がクリックされたときの処理
+    modal.onclick = function(event) {
+        // 画像自体ではなく、モーダルの背景がクリックされたかを確認
+        if (event.target === modal) {
+            modal.style.display = "none";
+        }
+    }
+});
