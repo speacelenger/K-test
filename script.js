@@ -1,56 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Smooth scrolling for navigation links
-    document.querySelectorAll('nav a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener('click', function (e) {
-            e.preventDefault();
 
-            const targetId = this.getAttribute('href');
-            const targetElement = document.querySelector(targetId);
-
-            if (targetElement) {
-                // Adjust scroll position to account for fixed header
-                const headerOffset = document.querySelector('header').offsetHeight;
-                const elementPosition = targetElement.getBoundingClientRect().top + window.pageYOffset;
-                const offsetPosition = elementPosition - headerOffset;
-
-                window.scrollTo({
-                    top: offsetPosition,
-                    behavior: 'smooth'
-                });
-            }
-        });
-    });
-
-    // You can add more JavaScript for interactive elements if needed.
-    // For example, a "Read More" toggle for the about section,
-    // or project card hover effects.
-});
-document.addEventListener('DOMContentLoaded', () => {
-    // Smooth scrolling for navigation links
-    document.querySelectorAll('nav a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener('click', function (e) {
-            e.preventDefault();
-
-            const targetId = this.getAttribute('href');
-            const targetElement = document.querySelector(targetId);
-
-            if (targetElement) {
-                // Adjust scroll position to account for fixed header
-                const headerOffset = document.querySelector('header').offsetHeight;
-                const elementPosition = targetElement.getBoundingClientRect().top + window.pageYOffset;
-                const offsetPosition = elementPosition - headerOffset;
-
-                window.scrollTo({
-                    top: offsetPosition,
-                    behavior: 'smooth'
-                });
-            }
-        });
-    });
-
-    // MARK: ここから追加するコード
+    // --- 1. ヘッダーのスクロール処理 ---
     const header = document.querySelector('header');
-    const scrollThreshold = 50; // ヘッダーに背景色を適用し始めるスクロール量（px）
+    const scrollThreshold = 50; 
 
     window.addEventListener('scroll', () => {
         if (window.scrollY > scrollThreshold) {
@@ -59,36 +11,119 @@ document.addEventListener('DOMContentLoaded', () => {
             header.classList.remove('scrolled');
         }
     });
-    // MARK: ここまで追加するコード
-}); 
 
-document.addEventListener('DOMContentLoaded', function() {
-    // モーダル要素を取得
-    var modal = document.getElementById("imageModal");
-    var modalImg = document.getElementById("expandedImg");
-    var closeBtn = document.getElementsByClassName("close-btn")[0];
-
-    // すべてのプロジェクト画像を取得
-    var images = document.querySelectorAll(".main-project-image");
+    // --- 2. Color Galleryの音楽再生処理 ---
     
-    // 各画像にクリックイベントリスナーを設定
-    images.forEach(function(img) {
-        img.onclick = function() {
-            modal.style.display = "block";
-            modalImg.src = this.src; // クリックされた画像のURLを設定
+    // HTMLのクラス名と一致していることを確認（.gallery-item-clean）
+    const galleryItems = document.querySelectorAll('.gallery-item-clean');
+    
+    let currentPlayingAudio = null; // 現在再生中の <audio> 要素を追跡
+    let currentPlayingItem = null;  // 現在再生中のアイテム <div> 要素を追跡
+
+    galleryItems.forEach(item => {
+        // 必須要素を取得。もしこれらがHTML内に無ければ再生機能は動作しない
+        const audio = item.querySelector('.gallery-audio-player');
+        const btn = item.querySelector('.play-pause-btn');
+        const progressBarContainer = item.querySelector('.progress-bar-container');
+        const progressBar = item.querySelector('.progress-bar');
+        const timeDisplay = item.querySelector('.time-display');
+        
+        // ギャラリーアイテムにUI要素がない場合は処理をスキップ
+        if (!audio || !btn || !progressBarContainer || !timeDisplay) {
+            // UIが未完成のアイテムはコンソールに警告を出す
+            console.warn("Skipping gallery item due to missing audio or UI elements:", item);
+            return;
         }
+
+        // 初期化
+        timeDisplay.textContent = '0:00 / 0:00';
+
+        // メディアのメタデータが読み込まれたとき
+        audio.addEventListener('loadedmetadata', () => {
+            const duration = formatTime(audio.duration);
+            timeDisplay.textContent = `0:00 / ${duration}`;
+        });
+
+        // -------------------------
+        // A. 再生/一時停止ボタンの処理
+        // -------------------------
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation(); // 親要素（アイテム全体）のクリックを無効化
+
+            if (audio.paused || audio.ended) {
+                // 他の音楽を停止する
+                if (currentPlayingAudio && currentPlayingAudio !== audio) {
+                    currentPlayingAudio.pause();
+                    const prevBtn = currentPlayingItem.querySelector('.play-pause-btn');
+                    prevBtn.innerHTML = '<i class="fas fa-play"></i>';
+                    currentPlayingItem.classList.remove('is-playing');
+                }
+
+                // 再生開始
+                audio.play()
+                    .then(() => {
+                        btn.innerHTML = '<i class="fas fa-pause"></i>';
+                        item.classList.add('is-playing');
+                        currentPlayingAudio = audio;
+                        currentPlayingItem = item;
+                    })
+                    .catch(error => {
+                        console.error("Audio playback failed:", error);
+                        // ブラウザの自動再生ブロックなどで失敗した場合
+                    });
+            } else {
+                // 一時停止
+                audio.pause();
+                btn.innerHTML = '<i class="fas fa-play"></i>';
+                item.classList.remove('is-playing');
+                currentPlayingAudio = null;
+                currentPlayingItem = null;
+            }
+        });
+
+        // -------------------------
+        // B. 進捗バーの更新とクリックシーク
+        // -------------------------
+        audio.addEventListener('timeupdate', () => {
+            if (isNaN(audio.duration)) return; // durationがNaNの場合はスキップ
+
+            const percentage = (audio.currentTime / audio.duration) * 100;
+            progressBar.style.width = percentage + '%';
+            
+            const currentTime = formatTime(audio.currentTime);
+            const duration = formatTime(audio.duration);
+            timeDisplay.textContent = `${currentTime} / ${duration}`;
+        });
+
+        // 再生が終了したときの処理
+        audio.addEventListener('ended', () => {
+            btn.innerHTML = '<i class="fas fa-play"></i>';
+            item.classList.remove('is-playing');
+            currentPlayingAudio = null;
+            currentPlayingItem = null;
+            progressBar.style.width = '0%';
+        });
+        
+        // 進捗バーをクリックしてシーク（再生位置の変更）
+        progressBarContainer.addEventListener('click', (e) => {
+            const width = progressBarContainer.clientWidth;
+            // 相対的なクリック位置を計算
+            const clickX = e.offsetX; 
+            const duration = audio.duration;
+
+            if (!isNaN(duration)) {
+                audio.currentTime = (clickX / width) * duration;
+            }
+        });
     });
-
-    // 閉じるボタンがクリックされたときの処理
-    closeBtn.onclick = function() {
-        modal.style.display = "none";
+    
+    // 時間を MM:SS 形式に整形するヘルパー関数
+    function formatTime(seconds) {
+        if (isNaN(seconds) || seconds < 0) return "0:00";
+        const minutes = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
     }
 
-    // モーダルの外側がクリックされたときの処理
-    modal.onclick = function(event) {
-        // 画像自体ではなく、モーダルの背景がクリックされたかを確認
-        if (event.target === modal) {
-            modal.style.display = "none";
-        }
-    }
+    // 他のナビゲーション/スクロール処理は、上記の処理に含まれています。
 });
